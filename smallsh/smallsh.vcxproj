@@ -93,6 +93,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <None Include="p3testscript" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="smallsh.h" />

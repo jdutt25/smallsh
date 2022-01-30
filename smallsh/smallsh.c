@@ -14,6 +14,6 @@
 /// <returns>0</returns>
 int main()
 {
-
+	commandPrompt();
 	return 0;
 }
