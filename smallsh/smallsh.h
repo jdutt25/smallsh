@@ -8,13 +8,40 @@
 struct commandLine
 {
 	char* command;
-	char arguments[512]
+	char arguments[512];
 	char* inputFile;
 	char* outputFile;
 	_Bool runBg;						// true if & and false otherwise. if true, command runs in background (unless built in)
 	
 };
 
+struct commandLine* createCommand(char* token, char* userInput, char* savePtr)
+{
+	struct commandLine* currCommand = malloc(sizeof(struct commandLine));
+
+	// command
+	token = strtok_r(NULL, " ", &savePtr);
+	currCommand->command = calloc(strlen(token) + 1, sizeof(char));
+	strcpy(currCommand->command, token);
+
+	// arguments
+	token = strtok_r(userInput, " ", &savePtr);
+	if (token == NULL) {
+		// no arguments, input or output file, process the command
+
+	}
+
+	// check if contains $$ and expand to PID if so								// IMPLEMENT
+
+		// input file
+
+		// output file
+
+		// run in background (ends in &)
+
+		// expand $$ in a command into PID of smallsh
+	return;
+}
 
 /// <summary>
 /// prompt in command line with 
@@ -22,24 +49,40 @@ struct commandLine
 /// Parameters: None
 ///Returns: None
 void commandPrompt() {
-	char* command[2048];
+	char* userInput;
 	size_t buflen;
-	int chars;
-
-	// prompt for command
-	printf(":");
-
-	// get user input
-	chars = getline(&command, &buflen, stdin);
-	command[chars - 1] = '\0';										// clear out new line
-
-	// if user input blank or starts with #, loop
+	size_t chars;
+	_Bool exitProgram = 0;	
 	
-	// parse user input and store in commandLine struct
 
-	// expand $$ in a command into PID of smallsh
+	while (exitProgram == 0)
+	{
+		// prompt for command
 
-	return;
+		printf(":");
+
+		// get user input
+		chars = getline(&userInput, &buflen, stdin);
+		char* savePtr;
+
+		char *token = strtok_r(userInput, " ", &savePtr);
+
+		if (userInput[0] == '\n') {
+			//blank input
+			continue;
+		}
+
+		if (token[0] == '#')
+		{
+			// comment, ignore this line
+			continue;
+		}
+
+		// parse user input and store in commandLine struct
+		
+
+	}
+		return;
 }
 
 /// <summary>
