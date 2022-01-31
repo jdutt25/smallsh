@@ -5,13 +5,16 @@
   gcc -std=gnu99 -g -Wall -o smallsh smallsh.c 
   In file included from smallsh.c:8:0:
   smallsh.h: In function ‘createCommand’:
-  ./smallsh
-  smallsh.h:43:2: warning: ‘return’ with no value, in function returning non-void [enabled by default]
+  smallsh.h:90:2: warning: ‘return’ with no value, in function returning non-void [enabled by default]
     return;
     ^
   smallsh.h: In function ‘commandPrompt’:
-  smallsh.h:54:9: warning: variable ‘chars’ set but not used [-Wunused-but-set-variable]
+  smallsh.h:105:8: warning: unused variable ‘background’ [-Wunused-variable]
+    _Bool background = 0;
+          ^
+  smallsh.h:103:9: warning: variable ‘chars’ set but not used [-Wunused-but-set-variable]
     size_t chars;
            ^
+  ./smallsh
   
   Copying file '/nfs/stak/users/duttonj/projects/smallsh/smallsh' to 'C:\Users\jessj\source\repos\smallsh\smallsh\bin\x64\Debug\smallsh'

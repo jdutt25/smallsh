@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 
+char* command;
+
 
 /* struct for command line*/
 struct commandLine
@@ -15,6 +17,54 @@ struct commandLine
 	
 };
 
+/// <summary>
+/// expands instances of $$ in user input to PID
+/// </summary>
+/// <param name=""></param>
+
+char* expandInput(char* userInput) {
+
+	char newCommand[2048];
+	pid_t getpid(void);
+	char* expandPtr;
+	char *token = strtok_r(userInput, "$", &expandPtr);
+	token = strtok_r(NULL, "$", &expandPtr);
+
+	// copy token into the command
+	strcpy(newCommand, token);
+	printf("in this function");
+
+	while (token != NULL){
+		/// hmmm strchr??
+		//if (token[0] == '$') {
+			printf("exists %s\n", token);
+			break;
+			// $$ exists, replace with PID
+			//sprintf(newCommand, newCommand, getpid());
+			// go to next $
+			
+			}
+		//else {
+		//	sprintf(newCommand, newCommand, token);
+		//	token = strtok_r(NULL, "$", &expandPtr);
+		//}
+	//}
+
+	command = calloc(strlen(token) + 1, sizeof(newCommand));
+	strcpy(command, newCommand);
+	
+
+	return command;
+	}
+
+
+/// <summary>
+/// populates comand line struct
+/// </summary>
+/// <param name="token">token for strtok_r of input</param>
+/// <param name="userInput">user input</param>
+/// <param name="savePtr">pointer for strtok_r of input</param>
+/// <returns></returns>
 struct commandLine* createCommand(char* token, char* userInput, char* savePtr)
 {
 	struct commandLine* currCommand = malloc(sizeof(struct commandLine));
@@ -28,10 +78,8 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr)
 	token = strtok_r(userInput, " ", &savePtr);
 	if (token == NULL) {
 		// no arguments, input or output file, process the command
-
+		printf("end of token");
 	}
-
-	// check if contains $$ and expand to PID if so								// IMPLEMENT
 
 		// input file
 
@@ -50,9 +98,12 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr)
 ///Returns: None
 void commandPrompt() {
 	char* userInput;
+	char* inputCopy;
+	char *expand;
 	size_t buflen;
 	size_t chars;
 	_Bool exitProgram = 0;	
+	_Bool background = 0;
 	
 
 	while (exitProgram == 0)
@@ -64,6 +115,7 @@ void commandPrompt() {
 		// get user input
 		chars = getline(&userInput, &buflen, stdin);
 		char* savePtr;
+		inputCopy = userInput;												// copy of input to access later
 
 		char *token = strtok_r(userInput, " ", &savePtr);
 
@@ -72,6 +124,25 @@ void commandPrompt() {
 			continue;
 		}
 
+
+		expand = strstr(inputCopy, "$$");
+	
+		if (expand != NULL) {
+			// $$ found in input and must be converted
+			printf("Found $$");
+			userInput = expandInput(inputCopy);
+			printf("User input is now: %s\n", userInput);
+		}
+
+		
+	/*
+		if (userInput[-2] == '&')
+		{
+			// symbol to run in background
+			background = 1;
+		}
+		*/
+
 		if (token[0] == '#')
 		{
 			// comment, ignore this line
@@ -79,9 +150,10 @@ void commandPrompt() {
 		}
 
 		// parse user input and store in commandLine struct
-		
+		//createCommand(token, userInput, savePtr);
 
 	}
+		
 		return;
 }
 
