@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 
-char* command;
 
 
 /* struct for command line*/
@@ -25,36 +24,29 @@ struct commandLine
 char* expandInput(char* userInput) {
 
 	char newCommand[2048];
-	pid_t getpid(void);
-	char* expandPtr;
-	char *token = strtok_r(userInput, "$", &expandPtr);
-	token = strtok_r(NULL, "$", &expandPtr);
+	char command[2048];
+	char* letter;
+	int i = 0;
 
-	// copy token into the command
-	strcpy(newCommand, token);
-	printf("in this function");
-
-	while (token != NULL){
-		/// hmmm strchr??
-		//if (token[0] == '$') {
-			printf("exists %s\n", token);
-			break;
-			// $$ exists, replace with PID
-			//sprintf(newCommand, newCommand, getpid());
-			// go to next $
-			
-			}
-		//else {
-		//	sprintf(newCommand, newCommand, token);
-		//	token = strtok_r(NULL, "$", &expandPtr);
-		//}
-	//}
-
-	command = calloc(strlen(token) + 1, sizeof(newCommand));
-	strcpy(command, newCommand);
+	//ensure newCommand and command are clear for new input
+	newCommand[0] = '\0';				
+	command[0] = '\0';
 	
+	while (i < strlen(userInput)) {
+		if ((userInput[i] == '$') && (i < (strlen(userInput) + 2)) && (userInput[i + 1] == '$')) {
+			// found $$, replace with pid
+			sprintf(newCommand, "%s%d", command, getpid());
+			strcpy(command, newCommand);
+			i += 2;
+		}
+		else {
+			sprintf(newCommand, "%s%c", command, userInput[i]);
+			strcpy(command, newCommand);
+			i += 1;
+		}
+	}
 
-	return command;
+	return newCommand;
 	}
 
 
@@ -110,6 +102,11 @@ void commandPrompt() {
 	{
 		// prompt for command
 
+		//ensure variables are clear for new input
+		userInput = '\0';
+		inputCopy = '\0';
+
+
 		printf(":");
 
 		// get user input
@@ -129,12 +126,11 @@ void commandPrompt() {
 	
 		if (expand != NULL) {
 			// $$ found in input and must be converted
-			printf("Found $$");
 			userInput = expandInput(inputCopy);
 			printf("User input is now: %s\n", userInput);
 		}
 
-		
+	
 	/*
 		if (userInput[-2] == '&')
 		{
@@ -153,7 +149,7 @@ void commandPrompt() {
 		//createCommand(token, userInput, savePtr);
 
 	}
-		
+
 		return;
 }
 
