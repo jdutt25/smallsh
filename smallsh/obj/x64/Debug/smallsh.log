@@ -16,12 +16,62 @@
     return;
     ^
   smallsh.h: In function ‘commandPrompt’:
+  smallsh.h:157:20: warning: multi-character character constant [-Wmultichar]
+     if (userInput == 'cd') {
+                      ^
+  smallsh.h:157:17: warning: comparison between pointer and integer [enabled by default]
+     if (userInput == 'cd') {
+                   ^
+  smallsh.h:163:16: warning: multi-character character constant [-Wmultichar]
+     if (token == 'cd') {
+                  ^
+  smallsh.h:163:13: warning: comparison between pointer and integer [enabled by default]
+     if (token == 'cd') {
+               ^
+  smallsh.h:167:4: warning: implicit declaration of function ‘cdCommandArg’ [-Wimplicit-function-declaration]
+      cdCommandArg(token);
+      ^
   smallsh.h:100:8: warning: variable ‘background’ set but not used [-Wunused-but-set-variable]
     _Bool background = 0;
           ^
   smallsh.h:98:9: warning: variable ‘chars’ set but not used [-Wunused-but-set-variable]
     size_t chars;
            ^
+  smallsh.h: At top level:
+  smallsh.h:212:6: warning: conflicting types for ‘cdCommandArg’ [enabled by default]
+   void cdCommandArg(char* path) {
+        ^
+  smallsh.h:167:4: note: previous implicit declaration of ‘cdCommandArg’ was here
+      cdCommandArg(token);
+      ^
+  smallsh.h: In function ‘cdCommandArg’:
+  smallsh.h:216:2: warning: passing argument 1 of ‘getcwd’ makes pointer from integer without a cast [enabled by default]
+    getcwd(cwd, sizeof(cwd));
+    ^
+  In file included from smallsh.h:4:0,
+                   from smallsh.c:8:
+  /usr/include/unistd.h:511:14: note: expected ‘char *’ but argument is of type ‘char’
+   extern char *getcwd (char *__buf, size_t __size) __THROW __wur;
+                ^
+  In file included from smallsh.c:8:0:
+  smallsh.h:217:2: warning: format ‘%s’ expects argument of type ‘char *’, but argument 2 has type ‘int’ [-Wformat=]
+    printf("STarts: %s", cwd);
+    ^
+  smallsh.h:219:2: warning: passing argument 1 of ‘getcwd’ makes pointer from integer without a cast [enabled by default]
+    getcwd(cwd, sizeof(cwd));
+    ^
+  In file included from smallsh.h:4:0,
+                   from smallsh.c:8:
+  /usr/include/unistd.h:511:14: note: expected ‘char *’ but argument is of type ‘char’
+   extern char *getcwd (char *__buf, size_t __size) __THROW __wur;
+                ^
+  In file included from smallsh.c:8:0:
+  smallsh.h:220:2: warning: format ‘%s’ expects argument of type ‘char *’, but argument 2 has type ‘int’ [-Wformat=]
+    printf("Ends: %s", cwd);
+    ^
+  smallsh.h:216:8: warning: ‘cwd’ is used uninitialized in this function [-Wuninitialized]
+    getcwd(cwd, sizeof(cwd));
+          ^
   ./smallsh
   
   Copying file '/nfs/stak/users/duttonj/projects/smallsh/smallsh' to 'C:\Users\jessj\source\repos\smallsh\smallsh\bin\x64\Debug\smallsh'

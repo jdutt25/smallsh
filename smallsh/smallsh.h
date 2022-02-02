@@ -135,16 +135,42 @@ void commandPrompt() {
 		}
 		
 
-		char *token = strtok_r(userInput, " ", &savePtr);
-
-		if (token[0] == '#')
+		if (userInput[0] == '#')
 		{
 			// comment, ignore this line
 			continue;
 		}
 
+		userInput[strlen(userInput) - 1] = '\0';								// clear out new line
+	
+		char* token = strtok_r(userInput, " ", &savePtr);
+
+		// compare to token to next commands  **************************** without getting segfault
+
+		//if (userInput == 'exit') {
+		/*
+		if (token == 'exit'){
+			exit(0);
+		}
+		*/
+
+		printf("TOKEN: %s", token);
+
+		if (userInput == 'cd') {
+			//changes to the directory specified in the HOME environment variable 
+			printf("CD!");
+			//cdCommand();
+		}
+
+		if (token == 'cd') {
+			//changes to the directory specified in the HOME environment variable
+			printf("CD TO PATH!");
+			char* token = strtok_r(NULL, " ", &savePtr);
+			cdCommandArg(token);
+		}
+
 		// parse user input and store in commandLine struct
-		//createCommand(token, userInput, savePtr);
+		// createCommand(token, userInput, savePtr);
 
 	}
 
@@ -158,6 +184,7 @@ void commandPrompt() {
 /// Parameters: None
 ///Returns: None
 void exitCommand() {
+	exit(0);
 	return;
 }
 
@@ -168,6 +195,13 @@ void exitCommand() {
 /// Parameters: None
 ///Returns: None
 void cdCommand() {
+	char cwd[256];
+
+	getcwd(cwd, sizeof(cwd));
+	printf("STarts: %s", cwd);
+	chdir(getenv("HOME"));
+	getcwd(cwd, sizeof(cwd));
+	printf("Ends: %s", cwd);
 	return;
 }
 
@@ -178,6 +212,14 @@ void cdCommand() {
 /// Parameters: path of directory to change to (absolute or relative)
 ///Returns: None
 void cdCommandArg(char* path) {
+	char cwd;
+
+
+	getcwd(cwd, sizeof(cwd));
+	printf("STarts: %s", cwd);
+	chdir(path);
+	getcwd(cwd, sizeof(cwd));
+	printf("Ends: %s", cwd);
 	return;
 }
 
