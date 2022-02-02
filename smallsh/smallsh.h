@@ -31,6 +31,8 @@ char* expandInput(char* userInput) {
 	//ensure newCommand and command are clear for new input
 	newCommand[0] = '\0';				
 	command[0] = '\0';
+
+	printf("%s", userInput);
 	
 	while (i < strlen(userInput)) {
 		if ((userInput[i] == '$') && (i < (strlen(userInput) + 2)) && (userInput[i + 1] == '$')) {
@@ -90,7 +92,7 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr)
 ///Returns: None
 void commandPrompt() {
 	char* userInput;
-	char* inputCopy;
+	//char* inputCopy;
 	char *expand;
 	size_t buflen;
 	size_t chars;
@@ -104,40 +106,36 @@ void commandPrompt() {
 
 		//ensure variables are clear for new input
 		userInput = '\0';
-		inputCopy = '\0';
+		//inputCopy = '\0';
 
 
 		printf(":");
 
 		// get user input
 		chars = getline(&userInput, &buflen, stdin);
-		char* savePtr;
-		inputCopy = userInput;												// copy of input to access later
-
-		char *token = strtok_r(userInput, " ", &savePtr);
+		char* savePtr;		
 
 		if (userInput[0] == '\n') {
 			//blank input
 			continue;
 		}
 
-
-		expand = strstr(inputCopy, "$$");
+		expand = strstr(userInput, "$$");
 	
 		if (expand != NULL) {
 			// $$ found in input and must be converted
-			userInput = expandInput(inputCopy);
+			userInput = expandInput(userInput);
 			printf("User input is now: %s\n", userInput);
 		}
-
-	
-	/*
-		if (userInput[-2] == '&')
+		
+		if (strlen(userInput) > 1 && userInput[strlen(userInput)-2] == '&')
 		{
 			// symbol to run in background
 			background = 1;
 		}
-		*/
+		
+
+		char *token = strtok_r(userInput, " ", &savePtr);
 
 		if (token[0] == '#')
 		{

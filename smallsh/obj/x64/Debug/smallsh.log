@@ -3,24 +3,23 @@
   Build command not configured, skipping.
   Invoking 'make', working directory: '/nfs/stak/users/duttonj/projects/smallsh/'
   gcc -std=gnu99 -g -Wall -o smallsh smallsh.c 
-  
   In file included from smallsh.c:8:0:
   smallsh.h: In function ‘expandInput’:
-  smallsh.h:48:2: warning: function returns address of local variable [-Wreturn-local-addr]
+  smallsh.h:51:2: warning: function returns address of local variable [-Wreturn-local-addr]
     return newCommand;
     ^
   smallsh.h:28:8: warning: unused variable ‘letter’ [-Wunused-variable]
     char* letter;
           ^
   smallsh.h: In function ‘createCommand’:
-  smallsh.h:82:2: warning: ‘return’ with no value, in function returning non-void [enabled by default]
+  smallsh.h:85:2: warning: ‘return’ with no value, in function returning non-void [enabled by default]
     return;
     ^
   smallsh.h: In function ‘commandPrompt’:
-  smallsh.h:97:8: warning: unused variable ‘background’ [-Wunused-variable]
+  smallsh.h:100:8: warning: variable ‘background’ set but not used [-Wunused-but-set-variable]
     _Bool background = 0;
           ^
-  smallsh.h:95:9: warning: variable ‘chars’ set but not used [-Wunused-but-set-variable]
+  smallsh.h:98:9: warning: variable ‘chars’ set but not used [-Wunused-but-set-variable]
     size_t chars;
            ^
   ./smallsh
