@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
+char* userInput;
 
 
 /* struct for command line*/
@@ -25,14 +26,11 @@ char* expandInput(char* userInput) {
 
 	char newCommand[2048];
 	char command[2048];
-	char* letter;
 	int i = 0;
 
 	//ensure newCommand and command are clear for new input
 	newCommand[0] = '\0';				
 	command[0] = '\0';
-
-	printf("%s", userInput);
 	
 	while (i < strlen(userInput)) {
 		if ((userInput[i] == '$') && (i < (strlen(userInput) + 2)) && (userInput[i + 1] == '$')) {
@@ -47,8 +45,8 @@ char* expandInput(char* userInput) {
 			i += 1;
 		}
 	}
-
-	return newCommand;
+	userInput = newCommand;
+	return userInput;
 	}
 
 
@@ -91,8 +89,6 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr)
 /// Parameters: None
 ///Returns: None
 void commandPrompt() {
-	char* userInput;
-	//char* inputCopy;
 	char *expand;
 	size_t buflen;
 	size_t chars;
@@ -106,8 +102,6 @@ void commandPrompt() {
 
 		//ensure variables are clear for new input
 		userInput = '\0';
-		//inputCopy = '\0';
-
 
 		printf(":");
 
@@ -120,12 +114,22 @@ void commandPrompt() {
 			continue;
 		}
 
+		// make a copy of the input with space in memory
+		char* inputCopy = malloc(2048);
+		int i = 0;
+
+		while (i < strlen(userInput)) {
+			sprintf(inputCopy, "%s%c", inputCopy, userInput[i]);
+			i++;
+		}
+
+		// check input for instance of $$
 		expand = strstr(userInput, "$$");
 	
 		if (expand != NULL) {
 			// $$ found in input and must be converted
-			userInput = expandInput(userInput);
-			printf("User input is now: %s\n", userInput);
+			inputCopy = expandInput(userInput);
+			printf("User input is now: %s\n", inputCopy);
 		}
 		
 		if (strlen(userInput) > 1 && userInput[strlen(userInput)-2] == '&')
@@ -134,40 +138,36 @@ void commandPrompt() {
 			background = 1;
 		}
 		
-
 		if (userInput[0] == '#')
 		{
-			// comment, ignore this line
+			// input is a comment, ignore 
 			continue;
 		}
 
-		userInput[strlen(userInput) - 1] = '\0';								// clear out new line
-	
-		char* token = strtok_r(userInput, " ", &savePtr);
+		inputCopy[strlen(inputCopy) - 1] = '\0';								// clear new line
+		
+		char* token = strtok_r(inputCopy, " ", &savePtr);
 
-		// compare to token to next commands  **************************** without getting segfault
-
-		//if (userInput == 'exit') {
-		/*
-		if (token == 'exit'){
+		if (strcmp(token, "exit") == 0){
+			exitProgram = 1;
 			exit(0);
-		}
-		*/
+		}	
+		
 
-		printf("TOKEN: %s", token);
-
-		if (userInput == 'cd') {
+		if (strcmp(token, "cd")==0){
 			//changes to the directory specified in the HOME environment variable 
-			printf("CD!");
-			//cdCommand();
+			char* token = strtok_r(NULL, " ", &savePtr);
+
+			if (token == NULL) {
+				//cd without path
+				cdCommand();
+			}
+			else {
+				// cd with path
+				cdCommandArg(token);
+			}
 		}
 
-		if (token == 'cd') {
-			//changes to the directory specified in the HOME environment variable
-			printf("CD TO PATH!");
-			char* token = strtok_r(NULL, " ", &savePtr);
-			cdCommandArg(token);
-		}
 
 		// parse user input and store in commandLine struct
 		// createCommand(token, userInput, savePtr);
@@ -177,7 +177,7 @@ void commandPrompt() {
 		return;
 }
 
-/// <summary>
+/// <summary>																				DELETE???????????????????????????????????
 /// Exit built in command
 /// Shell will kill any other processes or jobs that your shell has started before it terminates itself
 /// </summary>
@@ -195,13 +195,7 @@ void exitCommand() {
 /// Parameters: None
 ///Returns: None
 void cdCommand() {
-	char cwd[256];
-
-	getcwd(cwd, sizeof(cwd));
-	printf("STarts: %s", cwd);
 	chdir(getenv("HOME"));
-	getcwd(cwd, sizeof(cwd));
-	printf("Ends: %s", cwd);
 	return;
 }
 
@@ -212,14 +206,7 @@ void cdCommand() {
 /// Parameters: path of directory to change to (absolute or relative)
 ///Returns: None
 void cdCommandArg(char* path) {
-	char cwd;
-
-
-	getcwd(cwd, sizeof(cwd));
-	printf("STarts: %s", cwd);
 	chdir(path);
-	getcwd(cwd, sizeof(cwd));
-	printf("Ends: %s", cwd);
 	return;
 }
 
@@ -232,7 +219,6 @@ void cdCommandArg(char* path) {
 ///Returns: None
 void statusCommand() {
 	// if ran before any foreground command is run, return exit status 0
-
 
 	return;
 }
