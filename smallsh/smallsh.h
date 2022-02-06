@@ -1,18 +1,18 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 char* userInput;
-
 
 /* struct for command line*/
 struct commandLine
 {
-	char* command;
-	char arguments[512];
+	//char* command;
+	char* arguments[256];
 	char* inputFile;
 	char* outputFile;
 	_Bool runBg;						// true if & and false otherwise. if true, command runs in background (unless built in)
@@ -64,62 +64,66 @@ void runCommand(struct commandLine* currCommand) {
 	switch (spawnpid) {
 		case -1:
 			// fork failed
-			perror("fork() failed!");
+			perror("fork() failed!\n");
 			exit(1);
 			break;
 		case 0:
 			// spawnpid is 0, child will execute the code in this branch
-			if (currCommand->inputFile) {
+			if (strcmp(currCommand->inputFile, "\0") != 0) {
 				// input file provided
 				int input = open(currCommand->inputFile, O_RDONLY, 0444);
-
 				if (input == -1) {
 					// failed to open
-					printf("Error, cannot open input file.");
+					printf("Error, cannot open input file %s\n", currCommand->inputFile);
 					exit(1);
 					return;
 				}
 
-				int result = dup2(currCommand->inputFile, 0);
+				int result = dup2(currCommand->inputFile[0], 0);
 				if (result == -1) {
-					perror("dup2");
+					perror("dup2\n");
 					exit(2);
 					return;
 				}
 			}
 
-			if (currCommand->outputFile) {
+			if (strcmp(currCommand->outputFile, "\0") != 0) {
 				//output file provided
 				int output = open(currCommand->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0222);
 
 				if (output == -1) {
 					// failed to open
-					printf("Error, cannot open output file.");
+					printf("Error, cannot open output file %s\n", currCommand->outputFile);
 					exit(1);
 					return;
 				}
 
-					int result = dup2(currCommand->outputFile, 1);
+					int result = dup2(currCommand->outputFile[0], 1);
 					if (result == -1) {
-						perror("dup2");
+						perror("dup2\n");
 						exit(2);
 						return;
 					}
 				}
-			printf("running now");
-			execvp(currCommand->command, currCommand->arguments);
-			printf("background pid %s is done", spawnpid);
-
+			printf("running now\n");
+			execvp(currCommand->arguments[0], currCommand->arguments);
+			perror("execvp");
+			printf("Cannot run command %s\n", currCommand->arguments[0]);
+		
 		default:
 		// parent
-			printf("background pid is %d", spawnpid);
 			if (currCommand->runBg == 0) {
 				// run in foreground, must wait for completion
-				waitpid(spawnpid, childStatus, 1);
+				waitpid(spawnpid, &childStatus, 0);
 			}
-			// else, return right away
+			else {
+				printf("background pid is %d\n", spawnpid);
+				// else, return right away
+				waitpid(spawnpid, &childStatus, WNOHANG);
+				printf("background pid %d is done", spawnpid);
+
+			}
 		
-			return;
 	}
 
 	return;
@@ -136,15 +140,17 @@ void runCommand(struct commandLine* currCommand) {
 struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _Bool background)
 {
 	struct commandLine* currCommand = malloc(sizeof(struct commandLine));
-	_Bool fork = 1;					// call fork 1x
-	int argIndex = 0;
+	int i = 0;								// index of arg array
 
 	// command
-	currCommand->command = calloc(strlen(token) + 1, sizeof(char));
-	strcpy(currCommand->command, token);
+	//currCommand->command = calloc(strlen(token) + 1, sizeof(char));
+	//strcpy(currCommand->command, token);
 
 	// arguments
-	token = strtok_r(userInput, " ", &savePtr);
+	currCommand->arguments[i] =token;
+	i++;
+
+	token = strtok_r(NULL, " ", &savePtr);
 
 	while (token != NULL) {
 
@@ -157,23 +163,25 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 		}
 		else if (strcmp(token, ">") == 0) {
 			// output file
-			token = strtok_r(NULL, " ", &savePtr);
-			currCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
-			strcpy(currCommand->inputFile, token);
-
+			token = strtok_r(NULL," ", &savePtr);
+			if (strcmp(token, "\0") != 0) {
+				currCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
+				strcpy(currCommand->inputFile, token);
+			}
 		}
-
-		else {
+		else if (strcmp(token, "\0") != 0) {
 			// arguments
-			strcpy(currCommand->arguments[argIndex], token);
+			currCommand->arguments[i] = token;
+			i ++;
+			token = strtok_r(NULL, " ", &savePtr);
 		}
-
-		token = strtok_r(NULL, " ", &savePtr);
 	}
 
-		//runCommand(currCommand);
 
-	return;
+	printf("Run command!\n");
+	currCommand->arguments[i] = "\0"; 
+	runCommand(currCommand);
+	return currCommand;
 }
 
 /// <summary>
@@ -184,7 +192,7 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 void commandPrompt() {
 	char *expand;
 	size_t buflen;
-	size_t chars;
+	//size_t chars;
 	_Bool exitProgram = 0;	
 	_Bool background = 0;
 	
@@ -199,7 +207,7 @@ void commandPrompt() {
 		printf(":");
 
 		// get user input
-		chars = getline(&userInput, &buflen, stdin);
+		getline(&userInput, &buflen, stdin);
 		char* savePtr;		
 
 		if (userInput[0] == '\n') {
@@ -229,6 +237,7 @@ void commandPrompt() {
 		{
 			// symbol to run in background
 			background = 1;
+			userInput[strlen(userInput) - 2] = '\0';			// clear out & from end of input
 		}
 		
 		if (userInput[0] == '#')
@@ -253,18 +262,19 @@ void commandPrompt() {
 
 			if (token == NULL) {
 				//cd without path
-				cdCommand();
+				void cdCommand();
 
 			}
 			else {
 				// cd with path
-				cdCommandArg(token);
+				void cdCommandArg(char* token);
 			}
 		}
 
 		// parse user input and store in commandLine struct
 		else {
 			createCommand(token, inputCopy, savePtr, background);
+			continue;
 		}
 
 	}
