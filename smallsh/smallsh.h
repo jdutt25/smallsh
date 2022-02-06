@@ -19,6 +19,77 @@ struct commandLine
 	
 };
 
+
+/// <summary>
+/// performs input & output redirection & executes command
+/// </summary>
+/// <param name=""></param>
+void childProcess(struct commandLine* currCommand) {
+	printf("child process here!");
+	fflush(stdout);
+
+	if (currCommand->inputFile) {
+		printf("Input file provided");
+		fflush(stdout);
+
+		// input file provided
+		int input = open(currCommand->inputFile, O_RDONLY, 0777);
+		if (input == -1) {
+			// failed to open
+			printf("Error, cannot open input file %s\n", currCommand->inputFile);
+			fflush(stdout);
+			exit(1);
+			//return;
+		}
+
+		int result = dup2(input, 0);
+		if (result == -1) {
+			perror("dup2\n");
+			exit(2);
+			//return;
+		}
+	}
+
+	printf("what's happening");
+	fflush(stdout);
+
+	if (currCommand->outputFile) {
+		//output file provided
+		printf("let's do out! %s", currCommand->outputFile);
+		fflush(stdout);
+		char fileName[256];
+		strcpy(fileName, currCommand->outputFile);
+		sprintf(fileName, "%s%s", fileName, "\0");
+		int output = open(fileName, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+
+		if (output == -1) {
+			// failed to open
+			printf("Error, cannot open output file %s\n", currCommand->outputFile);
+			fflush(stdout);
+			exit(1);
+			return;
+		}
+
+		int result = dup2(output, 1);
+		if (result == -1) {
+			perror("dup2\n");
+			exit(2);
+			return;
+		}
+	}
+
+	printf("running now\n");
+	fflush(stdout);
+	execvp(currCommand->arguments[0], currCommand->arguments);
+	perror("execvp");
+	printf("Cannot run command %s\n", currCommand->arguments[0]);
+	fflush(stdout);
+	
+	return;
+}
+
+
+
 /// <summary>
 /// expands instances of $$ in user input to PID
 /// </summary>
@@ -69,51 +140,14 @@ void runCommand(struct commandLine* currCommand) {
 			break;
 		case 0:
 			// spawnpid is 0, child will execute the code in this branch
-			if (strcmp(currCommand->inputFile, "\0") != 0) {
-				// input file provided
-				int input = open(currCommand->inputFile, O_RDONLY, 0444);
-				if (input == -1) {
-					// failed to open
-					printf("Error, cannot open input file %s\n", currCommand->inputFile);
-					exit(1);
-					return;
-				}
-
-				int result = dup2(currCommand->inputFile[0], 0);
-				if (result == -1) {
-					perror("dup2\n");
-					exit(2);
-					return;
-				}
-			}
-
-			if (strcmp(currCommand->outputFile, "\0") != 0) {
-				//output file provided
-				int output = open(currCommand->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0222);
-
-				if (output == -1) {
-					// failed to open
-					printf("Error, cannot open output file %s\n", currCommand->outputFile);
-					exit(1);
-					return;
-				}
-
-					int result = dup2(currCommand->outputFile[0], 1);
-					if (result == -1) {
-						perror("dup2\n");
-						exit(2);
-						return;
-					}
-				}
-			printf("running now\n");
-			execvp(currCommand->arguments[0], currCommand->arguments);
-			perror("execvp");
-			printf("Cannot run command %s\n", currCommand->arguments[0]);
+			childProcess(currCommand);
+			break;
 		
 		default:
 		// parent
 			if (currCommand->runBg == 0) {
 				// run in foreground, must wait for completion
+				printf("I am the parent, waiting for completion");
 				waitpid(spawnpid, &childStatus, 0);
 			}
 			else {
@@ -154,7 +188,8 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 
 	while (token != NULL) {
 
-		if (strcmp(token, "<") == 0) {
+		if (strcmp(token, "<") == 0) 
+{
 			// input file
 			token = strtok_r(NULL, " ", &savePtr);
 			currCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
@@ -165,8 +200,8 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 			// output file
 			token = strtok_r(NULL," ", &savePtr);
 			if (strcmp(token, "\0") != 0) {
-				currCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
-				strcpy(currCommand->inputFile, token);
+				currCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
+				strcpy(currCommand->outputFile, token);
 			}
 		}
 		else if (strcmp(token, "\0") != 0) {
@@ -177,8 +212,6 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 		}
 	}
 
-
-	printf("Run command!\n");
 	currCommand->arguments[i] = "\0"; 
 	runCommand(currCommand);
 	return currCommand;
@@ -327,7 +360,4 @@ void statusCommand() {
 
 	return;
 }
-
-
-
 

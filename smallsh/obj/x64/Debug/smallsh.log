@@ -5,4 +5,5 @@
   gcc -std=gnu99 -g -Wall -o smallsh smallsh.c 
   ./smallsh
   
-  Copying file '/nfs/stak/users/duttonj/projects/smallsh/smallsh' to 'C:\Users\jessj\source\repos\smallsh\smallsh\bin\x64\Debug\smallsh'
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\v160\Application Type\Linux\1.0\Linux.Makefile.Targets(333,5): warning MSB4220: Waiting for the currently executing task "Execute" to cancel.
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\v160\Application Type\Linux\1.0\Linux.Makefile.Targets(333,5): error : Could not connect to the remote system. Please verify your connection settings, and that your machine is on the network and reachable.
