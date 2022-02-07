@@ -7,7 +7,8 @@
 #include <unistd.h>
 
 char* userInput;
-
+int status = 0;
+char* childProcesses[200];
 
 /* struct for command line*/
 struct commandLine
@@ -17,8 +18,56 @@ struct commandLine
 	char* inputFile;
 	char* outputFile;
 	_Bool runBg;						// true if & and false otherwise. if true, command runs in background (unless built in)
-	
+
 };
+
+/// <summary>																				DELETE???????????????????????????????????
+/// Exit built in command
+/// Shell will kill any other processes or jobs that your shell has started before it terminates itself
+/// </summary>
+/// Parameters: None
+///Returns: None
+void exitCommand(int status) {
+	exit(status);
+	return;
+}
+
+/// <summary>
+/// cd built in command without argument
+/// changes to the directory specified in the HOME environment variable 
+/// </summary>
+/// Parameters: None
+///Returns: None
+void cdCommand() {
+	chdir(getenv("HOME"));
+	return;
+}
+
+/// <summary>
+/// cd built in command with an argument
+/// changes to the directory specified in the HOME environment variable 
+/// </summary>
+/// Parameters: path of directory to change to (absolute or relative)
+///Returns: None
+void cdCommandArg(char* path) {
+	chdir(path);
+	return;
+}
+
+/// <summary>
+/// status built in command
+/// prints out either the exit status or the terminating signal of the last foreground process ran by your shell
+/// ignores built-in commands
+/// </summary>
+/// Parameters: None
+///Returns: None
+void statusCommand() {
+	// if ran before any foreground command is run, return exit status 0
+	printf("exit value %d\n", status);
+	fflush(stdout);
+	return;
+}
+
 
 
 /// <summary>
@@ -30,19 +79,22 @@ void childProcess(struct commandLine* currCommand) {
 	if (currCommand->inputFile) {
 
 		// input file provided
-		int input = open(currCommand->inputFile, O_RDONLY, 0777);
+		char inFileName[256];
+		strcpy(inFileName, currCommand->inputFile);
+		//sprintf(inFileName, "%s%s", inFileName, '\0');
+		int input = open(inFileName, O_RDONLY, 0777);
 		if (input == -1) {
 			// failed to open
 			printf("Error, cannot open input file %s\n", currCommand->inputFile);
 			fflush(stdout);
-			exit(1);
+			status = 1;
 			//return;
 		}
 
 		int result = dup2(input, 0);
 		if (result == -1) {
-			perror("dup2\n");
-			exit(2);
+			perror("dup2");
+			status = 1;
 			//return;
 		}
 	}
@@ -52,31 +104,33 @@ void childProcess(struct commandLine* currCommand) {
 		//output file provided
 		char fileName[256];
 		strcpy(fileName, currCommand->outputFile);
-		sprintf(fileName, "%s%s", fileName, "\0");
 		int output = open(fileName, O_WRONLY | O_CREAT | O_TRUNC, 0777);
 
 		if (output == -1) {
 			// failed to open
 			perror("output open()");
-			exit(1);
+			fflush(stdout);
+			status = 1;
 		}
 
 		int result = dup2(output, 1);
 		if (result == -1) {
-			perror("output dup2\n");
-			exit(2);
+			perror("output dup2");
+			fflush(stdout);
+			status = 1;
 		}
 	}
 
 	execvp(currCommand->arguments[0], currCommand->arguments);
+	fflush(stdout);
 	perror("execvp");
+	fflush(stdout);
 	printf("Cannot run command %s\n", currCommand->arguments[0]);
 	fflush(stdout);
+	status = 1;
 	
 	return;
 }
-
-
 
 /// <summary>
 /// expands instances of $$ in user input to PID
@@ -124,7 +178,7 @@ void runCommand(struct commandLine* currCommand) {
 		case -1:
 			// fork failed
 			perror("fork() failed!\n");
-			exit(1);
+			status = 1;
 			break;
 		case 0:
 			// spawnpid is 0, child will execute the code in this branch
@@ -143,6 +197,7 @@ void runCommand(struct commandLine* currCommand) {
 				// else, return right away
 				waitpid(spawnpid, &childStatus, WNOHANG);
 				printf("background pid %d is done", spawnpid);
+				fflush(stdout);
 
 			}
 		
@@ -183,6 +238,7 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 			token = strtok_r(NULL, " ", &savePtr);
 			currCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
 			strcpy(currCommand->inputFile, token);
+			token = strtok_r(NULL, " ", &savePtr);
 
 		}
 		else if (strcmp(token, ">") == 0) {
@@ -191,6 +247,7 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 			if (strcmp(token, "\0") != 0) {
 				currCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 				strcpy(currCommand->outputFile, token);
+				token = strtok_r(NULL, " ", &savePtr);
 			}
 		}
 		else if (strcmp(token, "\0") != 0) {
@@ -228,7 +285,7 @@ void commandPrompt() {
 		//ensure variables are clear for new input
 		userInput = '\0';
 
-		printf(":");
+		printf(": ");
 		fflush(stdout);
 
 		// get user input
@@ -256,13 +313,14 @@ void commandPrompt() {
 			// $$ found in input and must be converted
 			inputCopy = expandInput(userInput);
 			printf("User input is now: %s\n", inputCopy);
+			fflush(stdout);
 		}
 		
 		if (strlen(userInput) > 1 && userInput[strlen(userInput)-2] == '&')
 		{
 			// symbol to run in background
 			background = 1;
-			userInput[strlen(userInput) - 2] = "\0";			// clear out & from end of input
+			userInput[strlen(userInput) - 2] = '\0';			// clear out & from end of input
 		}
 		
 		if (userInput[0] == '#')
@@ -273,33 +331,32 @@ void commandPrompt() {
 
 		inputCopy[strlen(inputCopy) - 1] = '\0';								// clear new line
 		
-		token = "\0";
+		token = '\0';
 		token = strtok_r(inputCopy, " ", &savePtr);
-
-		if (strcmp(token, "exit") == 0){
-			exitProgram = 1;
-			exit(0);
-		}	
 
 		if (strcmp(token, "status") == 0) {
 			statusCommand();
 		}
-		
 
-		if (strcmp(token, "cd")==0){
+		else if (strcmp(token, "exit") == 0){
+			exit(0);
+		}	
+
+		else if (strcmp(token, "cd")==0){
 			//changes to the directory specified in the HOME environment variable 
 			char* token = strtok_r(NULL, " ", &savePtr);
 
 			if (token == NULL) {
 				//cd without path
-				void cdCommand();
+				cdCommand();
 
 			}
 			else {
 				// cd with path
-				void cdCommandArg(char* token);
+				cdCommandArg(token);
 			}
 		}
+
 
 		// parse user input and store in commandLine struct
 		else {
@@ -312,49 +369,4 @@ void commandPrompt() {
 		return;
 }
 
-/// <summary>																				DELETE???????????????????????????????????
-/// Exit built in command
-/// Shell will kill any other processes or jobs that your shell has started before it terminates itself
-/// </summary>
-/// Parameters: None
-///Returns: None
-void exitCommand() {
-	exit(0);
-	return;
-}
-
-/// <summary>
-/// cd built in command without argument
-/// changes to the directory specified in the HOME environment variable 
-/// </summary>
-/// Parameters: None
-///Returns: None
-void cdCommand() {
-	chdir(getenv("HOME"));
-	return;
-}
-
-/// <summary>
-/// cd built in command with an argument
-/// changes to the directory specified in the HOME environment variable 
-/// </summary>
-/// Parameters: path of directory to change to (absolute or relative)
-///Returns: None
-void cdCommandArg(char* path) {
-	chdir(path);
-	return;
-}
-
-/// <summary>
-/// status built in command
-/// prints out either the exit status or the terminating signal of the last foreground process ran by your shell
-/// ignores built-in commands
-/// </summary>
-/// Parameters: None
-///Returns: None
-void statusCommand() {
-	// if ran before any foreground command is run, return exit status 0
-
-	return;
-}
 
