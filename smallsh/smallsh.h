@@ -8,6 +8,7 @@
 
 char* userInput;
 
+
 /* struct for command line*/
 struct commandLine
 {
@@ -25,12 +26,8 @@ struct commandLine
 /// </summary>
 /// <param name=""></param>
 void childProcess(struct commandLine* currCommand) {
-	printf("child process here!");
-	fflush(stdout);
 
 	if (currCommand->inputFile) {
-		printf("Input file provided");
-		fflush(stdout);
 
 		// input file provided
 		int input = open(currCommand->inputFile, O_RDONLY, 0777);
@@ -50,13 +47,9 @@ void childProcess(struct commandLine* currCommand) {
 		}
 	}
 
-	printf("what's happening");
-	fflush(stdout);
 
 	if (currCommand->outputFile) {
 		//output file provided
-		printf("let's do out! %s", currCommand->outputFile);
-		fflush(stdout);
 		char fileName[256];
 		strcpy(fileName, currCommand->outputFile);
 		sprintf(fileName, "%s%s", fileName, "\0");
@@ -64,22 +57,17 @@ void childProcess(struct commandLine* currCommand) {
 
 		if (output == -1) {
 			// failed to open
-			printf("Error, cannot open output file %s\n", currCommand->outputFile);
-			fflush(stdout);
+			perror("output open()");
 			exit(1);
-			return;
 		}
 
 		int result = dup2(output, 1);
 		if (result == -1) {
-			perror("dup2\n");
+			perror("output dup2\n");
 			exit(2);
-			return;
 		}
 	}
 
-	printf("running now\n");
-	fflush(stdout);
 	execvp(currCommand->arguments[0], currCommand->arguments);
 	perror("execvp");
 	printf("Cannot run command %s\n", currCommand->arguments[0]);
@@ -147,11 +135,11 @@ void runCommand(struct commandLine* currCommand) {
 		// parent
 			if (currCommand->runBg == 0) {
 				// run in foreground, must wait for completion
-				printf("I am the parent, waiting for completion");
 				waitpid(spawnpid, &childStatus, 0);
 			}
 			else {
 				printf("background pid is %d\n", spawnpid);
+				fflush(stdout);
 				// else, return right away
 				waitpid(spawnpid, &childStatus, WNOHANG);
 				printf("background pid %d is done", spawnpid);
@@ -181,24 +169,25 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 	//strcpy(currCommand->command, token);
 
 	// arguments
-	currCommand->arguments[i] =token;
+
+	currCommand->arguments[i] = token;
 	i++;
 
 	token = strtok_r(NULL, " ", &savePtr);
 
 	while (token != NULL) {
 
-		if (strcmp(token, "<") == 0) 
-{
+		if (strcmp(token, "<") == 0)
+		{
 			// input file
 			token = strtok_r(NULL, " ", &savePtr);
 			currCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
 			strcpy(currCommand->inputFile, token);
-		
+
 		}
 		else if (strcmp(token, ">") == 0) {
 			// output file
-			token = strtok_r(NULL," ", &savePtr);
+			token = strtok_r(NULL, " ", &savePtr);
 			if (strcmp(token, "\0") != 0) {
 				currCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 				strcpy(currCommand->outputFile, token);
@@ -207,15 +196,16 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 		else if (strcmp(token, "\0") != 0) {
 			// arguments
 			currCommand->arguments[i] = token;
-			i ++;
+			i++;
 			token = strtok_r(NULL, " ", &savePtr);
 		}
 	}
 
-	currCommand->arguments[i] = "\0"; 
+	currCommand->arguments[i] = '\0';
 	runCommand(currCommand);
 	return currCommand;
 }
+
 
 /// <summary>
 /// prompt in command line with 
@@ -228,6 +218,7 @@ void commandPrompt() {
 	//size_t chars;
 	_Bool exitProgram = 0;	
 	_Bool background = 0;
+	char* token;
 	
 
 	while (exitProgram == 0)
@@ -238,6 +229,7 @@ void commandPrompt() {
 		userInput = '\0';
 
 		printf(":");
+		fflush(stdout);
 
 		// get user input
 		getline(&userInput, &buflen, stdin);
@@ -270,7 +262,7 @@ void commandPrompt() {
 		{
 			// symbol to run in background
 			background = 1;
-			userInput[strlen(userInput) - 2] = '\0';			// clear out & from end of input
+			userInput[strlen(userInput) - 2] = "\0";			// clear out & from end of input
 		}
 		
 		if (userInput[0] == '#')
@@ -281,12 +273,17 @@ void commandPrompt() {
 
 		inputCopy[strlen(inputCopy) - 1] = '\0';								// clear new line
 		
-		char* token = strtok_r(inputCopy, " ", &savePtr);
+		token = "\0";
+		token = strtok_r(inputCopy, " ", &savePtr);
 
 		if (strcmp(token, "exit") == 0){
 			exitProgram = 1;
 			exit(0);
 		}	
+
+		if (strcmp(token, "status") == 0) {
+			statusCommand();
+		}
 		
 
 		if (strcmp(token, "cd")==0){
