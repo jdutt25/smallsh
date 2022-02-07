@@ -8,7 +8,8 @@
 
 char* userInput;
 int status = 0;
-char* childProcesses[200];
+char* childArr[200];
+int indx = 0;
 
 /* struct for command line*/
 struct commandLine
@@ -119,7 +120,33 @@ void childProcess(struct commandLine* currCommand) {
 			fflush(stdout);
 			status = 1;
 		}
+	
 	}
+
+	else 
+	{
+		// no output file provided
+		if (currCommand->runBg == 1) {
+			// background command - direct to /dev/null
+			int output = open("/dev/null", O_WRONLY, 0777);
+
+			if (output == -1) {
+				// failed to open
+				perror("output open()");
+				fflush(stdout);
+				status = 1;
+			}
+
+			int result = dup2(output, 1);
+			if (result == -1) {
+				perror("output dup2");
+				fflush(stdout);
+				status = 1;
+			}
+		}
+
+	}
+
 
 	execvp(currCommand->arguments[0], currCommand->arguments);
 	fflush(stdout);
@@ -194,11 +221,11 @@ void runCommand(struct commandLine* currCommand) {
 			else {
 				printf("background pid is %d\n", spawnpid);
 				fflush(stdout);
+				char savepid[10];
+				sprintf(savepid, "%d", spawnpid);
+				childArr[indx] = savepid;
+				indx = indx + 1;
 				// else, return right away
-				waitpid(spawnpid, &childStatus, WNOHANG);
-				printf("background pid %d is done", spawnpid);
-				fflush(stdout);
-
 			}
 		
 	}
@@ -258,6 +285,7 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 		}
 	}
 
+	currCommand->runBg = background;
 	currCommand->arguments[i] = '\0';
 	runCommand(currCommand);
 	return currCommand;
@@ -269,6 +297,7 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 /// </summary>
 /// Parameters: None
 ///Returns: None
+/// Referenced: Exploration: Process API - Monitoring Child Processes, 
 void commandPrompt() {
 	char *expand;
 	size_t buflen;
@@ -284,6 +313,35 @@ void commandPrompt() {
 
 		//ensure variables are clear for new input
 		userInput = '\0';
+
+		// iterate through background child pids to check for ones that have completed
+		for (int i = 0; i < 200; i++) {
+			int childStatus;
+			int childSignal;
+			int childPid = childArr[i];
+			if (childPid)
+			{
+				if (childPid != -5 && waitpid(childPid, &childStatus, WNOHANG) != 0)
+				{
+					if (WIFEXITED(childStatus))
+					{
+						// terminated normally
+						childSignal = WEXITSTATUS(childStatus);
+					}
+					else
+					{
+						//terminated abnormally
+						childSignal = WTERMSIG(childStatus);
+					}
+
+					printf("background pid %s is done: exit value %d", childArr[i], childSignal);
+					fflush(stdout);
+					int clearVal = -5;
+					childArr[i] = clearVal;	// clear out value
+				}
+			}
+			i++;
+		}
 
 		printf(": ");
 		fflush(stdout);
@@ -316,14 +374,14 @@ void commandPrompt() {
 			fflush(stdout);
 		}
 		
-		if (strlen(userInput) > 1 && userInput[strlen(userInput)-2] == '&')
+		if (strlen(inputCopy) > 1 && inputCopy[strlen(inputCopy)-2] == '&')
 		{
 			// symbol to run in background
 			background = 1;
-			userInput[strlen(userInput) - 2] = '\0';			// clear out & from end of input
+			inputCopy[strlen(inputCopy) - 2] = '\0';			// clear out & from end of input
 		}
 		
-		if (userInput[0] == '#')
+		if (inputCopy[0] == '#')
 		{
 			// input is a comment, ignore 
 			continue;
