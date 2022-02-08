@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 
 char* userInput;
 int status = 0;
+int termSignal = -5;		// placeholder value
 int childArr[200];
 int indx = 0;
 
@@ -64,8 +66,15 @@ void cdCommandArg(char* path) {
 ///Returns: None
 void statusCommand() {
 	// if ran before any foreground command is run, return exit status 0
-	printf("exit value %d\n", status);
-	fflush(stdout);
+
+	if (termSignal != -5) {
+		printf("terminated by signal %d\n", termSignal);
+		fflush(stdout);
+	}
+	else {
+		printf("exit value %d\n", status);
+		fflush(stdout);
+	}
 	return;
 }
 
@@ -89,6 +98,7 @@ void childProcess(struct commandLine* currCommand) {
 			printf("Error, cannot open %s for input\n", currCommand->inputFile);
 			fflush(stdout);
 			status = 1;
+			termSignal = -5;		// reset term signal for new status
 			return;
 		}
 
@@ -96,6 +106,7 @@ void childProcess(struct commandLine* currCommand) {
 		if (result == -1) {
 			perror("dup2");
 			status = 1;
+			termSignal = -5;		// reset term signal for new status
 			return;
 		}
 	}
@@ -112,6 +123,7 @@ void childProcess(struct commandLine* currCommand) {
 			perror("output open()");
 			fflush(stdout);
 			status = 1;
+			termSignal = -5;		// reset term signal for new status
 			return;
 		}
 
@@ -120,6 +132,7 @@ void childProcess(struct commandLine* currCommand) {
 			perror("output dup2");
 			fflush(stdout);
 			status = 1; 
+			termSignal = -5;		// reset term signal for new status
 			return;
 		}
 
@@ -137,6 +150,7 @@ void childProcess(struct commandLine* currCommand) {
 				perror("output open()");
 				fflush(stdout);
 				status = 1;
+				termSignal = -5;		// reset term signal for new status
 				return;
 			}
 
@@ -145,19 +159,27 @@ void childProcess(struct commandLine* currCommand) {
 				perror("output dup2");
 				fflush(stdout);
 				status = 1;
+				termSignal = -5;		// reset term signal for new status
 				return;
 			}
 		}
 
 	}
 
+	if (currCommand->runBg == 0) {
+		// foreground process, child must terminate itself
+		struct sigaction SIGINT_default_action = { { 0 } };
+		SIGINT_default_action.sa_handler = SIG_DFL;
+		sigaction(SIGINT, &SIGINT_default_action, NULL);
+	}
+
 	execvp(currCommand->arguments[0], currCommand->arguments);
 	fflush(stdout);
 	perror("execvp");
 	fflush(stdout);
-	//printf("Cannot run command %s\n", currCommand->arguments[0]);
-	//fflush(stdout);
+
 	status = 1;
+	termSignal = -5;		// reset term signal for new status
 	return;
 }
 
@@ -208,6 +230,7 @@ void runCommand(struct commandLine* currCommand) {
 		// fork failed
 		perror("fork() failed!\n");
 		status = 1;
+		termSignal = -5;		// reset term signal for new status
 		break;
 	case 0:
 		// spawnpid is 0, child will execute the code in this branch
@@ -218,16 +241,20 @@ void runCommand(struct commandLine* currCommand) {
 		// parent
 		if (currCommand->runBg == 0) {
 			// run in foreground, must wait for completion
+
 			waitpid(spawnpid, &childStatus, 0);
 			if (WIFEXITED(childStatus))
 				{
 				// terminated normally
 					status = WEXITSTATUS(childStatus);
+					termSignal = -5;		// reset term signal for new status
 				}
 				else
 				{
 					//terminated abnormally
-					status = WTERMSIG(childStatus);
+					termSignal = WTERMSIG(childStatus);
+					statusCommand();
+
 				}
 		}
 		else {
@@ -318,6 +345,11 @@ void commandPrompt() {
 	_Bool exitProgram = 0;
 	_Bool background = 0;
 	char* token;
+
+	// SIGINT_action struct - ignore SIGINT
+	struct sigaction ignore_action = {{ 0 }};
+	ignore_action.sa_handler = SIG_IGN;
+	sigaction(SIGINT, &ignore_action, NULL);
 
 
 	while (exitProgram == 0)
