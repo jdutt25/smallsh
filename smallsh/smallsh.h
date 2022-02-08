@@ -1,3 +1,10 @@
+/*
+	Author:	Jessica Dutton
+	Class:	OSU CS 344
+	Last updated: 2/7/22
+	Smallsh
+*/
+
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -16,7 +23,7 @@ int indx = 0;
 _Bool foregroundOnly = 0;		// boolean for foreground only mode
 
 
-/* Our signal handler for SIGTSTP */
+/* signal handler for SIGTSTP */
 void handle_SIGTSTP(int signo) {
 	if (foregroundOnly == 0){
 		//change to foreground only mode
@@ -42,17 +49,6 @@ struct commandLine
 	_Bool runBg;						// true if & and false otherwise. if true, command runs in background (unless built in)
 
 };
-
-/// <summary>																				DELETE???????????????????????????????????
-/// Exit built in command
-/// Shell will kill any other processes or jobs that your shell has started before it terminates itself
-/// </summary>
-/// Parameters: None
-///Returns: None
-void exitCommand(int status) {
-	exit(status);
-	return;
-}
 
 /// <summary>
 /// cd built in command without argument
@@ -96,8 +92,6 @@ void statusCommand() {
 	}
 
 }
-
-
 
 /// <summary>
 /// performs input & output redirection & executes command
@@ -292,10 +286,8 @@ void runCommand(struct commandLine* currCommand) {
 			indx = indx + 1;
 			
 		}
-
 	}
-
-	return;
+		return;
 }
 
 
@@ -305,17 +297,11 @@ void runCommand(struct commandLine* currCommand) {
 /// <param name="token">token for strtok_r of input</param>
 /// <param name="userInput">user input</param>
 /// <param name="savePtr">pointer for strtok_r of input</param>
-/// <returns></returns>
+/// <returns>currCommand</returns>
 struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _Bool background)
 {
 	struct commandLine* currCommand = malloc(sizeof(struct commandLine));
 	int i = 0;								// index of arg array
-
-	// command
-	//currCommand->command = calloc(strlen(token) + 1, sizeof(char));
-	//strcpy(currCommand->command, token);
-
-	// arguments
 
 	currCommand->arguments[i] = token;
 	i++;
@@ -379,8 +365,6 @@ void commandPrompt() {
 
 	while (exitProgram == 0)
 	{
-		// prompt for command
-
 		//ensure variables are clear for new input
 		userInput = '\0';
 		background = 0;			// reset bool to 0
