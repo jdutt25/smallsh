@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -12,6 +13,24 @@ int status = 0;
 int termSignal = -5;		// placeholder value
 int childArr[200];
 int indx = 0;
+_Bool foregroundOnly = 0;		// boolean for foreground only mode
+
+
+/* Our signal handler for SIGTSTP */
+void handle_SIGTSTP(int signo) {
+	if (foregroundOnly == 0){
+		//change to foreground only mode
+		char* message = "\nEntering foreground-only mode (& is now ignored)\n";
+		write(STDOUT_FILENO, message, 50);
+		foregroundOnly = 1;
+	}
+	else {
+		// in foreground only mode currently, change back
+		char* message = "\nExiting foreground-only mode\n";
+		write(STDOUT_FILENO, message, 29);
+		foregroundOnly = 0; 
+	}
+}
 
 /* struct for command line*/
 struct commandLine
@@ -75,7 +94,7 @@ void statusCommand() {
 		printf("exit value %d\n", status);
 		fflush(stdout);
 	}
-	return;
+
 }
 
 
@@ -86,12 +105,17 @@ void statusCommand() {
 /// <param name=""></param>
 void childProcess(struct commandLine* currCommand) {
 
+	//  ignore SIGTSTP
+	struct sigaction ignore_action = { { 0 } };
+	ignore_action.sa_handler = SIG_IGN;
+	sigaction(SIGTSTP, &ignore_action, NULL);
+
 	if (currCommand->inputFile) {
 
 		// input file provided
 		char inFileName[256];
 		strcpy(inFileName, currCommand->inputFile);
-		//sprintf(inFileName, "%s%s", inFileName, '\0');
+
 		int input = open(inFileName, O_RDONLY, 0777);
 		if (input == -1) {
 			// failed to open
@@ -167,7 +191,7 @@ void childProcess(struct commandLine* currCommand) {
 	}
 
 	if (currCommand->runBg == 0) {
-		// foreground process, child must terminate itself
+		// foreground process, child must terminate itself if SIGINT
 		struct sigaction SIGINT_default_action = { { 0 } };
 		SIGINT_default_action.sa_handler = SIG_DFL;
 		sigaction(SIGINT, &SIGINT_default_action, NULL);
@@ -234,6 +258,7 @@ void runCommand(struct commandLine* currCommand) {
 		break;
 	case 0:
 		// spawnpid is 0, child will execute the code in this branch
+	
 		childProcess(currCommand);
 		break;
 
@@ -337,7 +362,7 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 /// </summary>
 /// Parameters: None
 ///Returns: None
-/// Referenced: Exploration: Process API - Monitoring Child Processes, 
+/// Referenced: Exploration: Process API - Monitoring Child Processes, Exploration: Signal Handling API
 void commandPrompt() {
 	char* expand;
 	size_t buflen;
@@ -389,8 +414,16 @@ void commandPrompt() {
 			i++;
 		}
 
+		// signal handler for foreground only mode
+		struct sigaction SIGTSTP_action = { { 0 } };
+		SIGTSTP_action.sa_handler = handle_SIGTSTP;
+		sigfillset(&SIGTSTP_action.sa_mask);
+		SIGTSTP_action.sa_flags = SA_RESTART;
+		sigaction(SIGTSTP, &SIGTSTP_action, NULL);
+		
 		printf(": ");
 		fflush(stdout);
+
 
 		// get user input
 		getline(&userInput, &buflen, stdin);
@@ -416,11 +449,9 @@ void commandPrompt() {
 		if (expand != NULL) {
 			// $$ found in input and must be converted
 			inputCopy = expandInput(userInput);
-			printf("User input is now: %s\n", inputCopy);
-			fflush(stdout);
 		}
 
-		if (strlen(inputCopy) > 1 && inputCopy[strlen(inputCopy) - 2] == '&')
+		if (foregroundOnly != 1 && strlen(inputCopy) > 1 && inputCopy[strlen(inputCopy) - 2] == '&')
 		{
 			// symbol to run in background
 			background = 1;
