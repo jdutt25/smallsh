@@ -8,7 +8,7 @@
 
 char* userInput;
 int status = 0;
-char* childArr[200];
+int childArr[200];
 int indx = 0;
 
 /* struct for command line*/
@@ -86,17 +86,17 @@ void childProcess(struct commandLine* currCommand) {
 		int input = open(inFileName, O_RDONLY, 0777);
 		if (input == -1) {
 			// failed to open
-			printf("Error, cannot open input file %s\n", currCommand->inputFile);
+			printf("Error, cannot open %s for input\n", currCommand->inputFile);
 			fflush(stdout);
 			status = 1;
-			//return;
+			return;
 		}
 
 		int result = dup2(input, 0);
 		if (result == -1) {
 			perror("dup2");
 			status = 1;
-			//return;
+			return;
 		}
 	}
 
@@ -112,18 +112,20 @@ void childProcess(struct commandLine* currCommand) {
 			perror("output open()");
 			fflush(stdout);
 			status = 1;
+			return;
 		}
 
 		int result = dup2(output, 1);
 		if (result == -1) {
 			perror("output dup2");
 			fflush(stdout);
-			status = 1;
+			status = 1; 
+			return;
 		}
-	
+
 	}
 
-	else 
+	else
 	{
 		// no output file provided
 		if (currCommand->runBg == 1) {
@@ -135,6 +137,7 @@ void childProcess(struct commandLine* currCommand) {
 				perror("output open()");
 				fflush(stdout);
 				status = 1;
+				return;
 			}
 
 			int result = dup2(output, 1);
@@ -142,20 +145,19 @@ void childProcess(struct commandLine* currCommand) {
 				perror("output dup2");
 				fflush(stdout);
 				status = 1;
+				return;
 			}
 		}
 
 	}
 
-
 	execvp(currCommand->arguments[0], currCommand->arguments);
 	fflush(stdout);
 	perror("execvp");
 	fflush(stdout);
-	printf("Cannot run command %s\n", currCommand->arguments[0]);
-	fflush(stdout);
+	//printf("Cannot run command %s\n", currCommand->arguments[0]);
+	//fflush(stdout);
 	status = 1;
-	
 	return;
 }
 
@@ -171,9 +173,9 @@ char* expandInput(char* userInput) {
 	int i = 0;
 
 	//ensure newCommand and command are clear for new input
-	newCommand[0] = '\0';				
+	newCommand[0] = '\0';
 	command[0] = '\0';
-	
+
 	while (i < strlen(userInput)) {
 		if ((userInput[i] == '$') && (i < (strlen(userInput) + 2)) && (userInput[i + 1] == '$')) {
 			// found $$, replace with pid
@@ -189,7 +191,7 @@ char* expandInput(char* userInput) {
 	}
 	userInput = newCommand;
 	return userInput;
-	}
+}
 
 
 /// <summary>
@@ -200,34 +202,45 @@ void runCommand(struct commandLine* currCommand) {
 	pid_t spawnpid = -5;
 	int childStatus;
 	spawnpid = fork();
-	
+
 	switch (spawnpid) {
-		case -1:
-			// fork failed
-			perror("fork() failed!\n");
-			status = 1;
-			break;
-		case 0:
-			// spawnpid is 0, child will execute the code in this branch
-			childProcess(currCommand);
-			break;
-		
-		default:
+	case -1:
+		// fork failed
+		perror("fork() failed!\n");
+		status = 1;
+		break;
+	case 0:
+		// spawnpid is 0, child will execute the code in this branch
+		childProcess(currCommand);
+		break;
+
+	default:
 		// parent
-			if (currCommand->runBg == 0) {
-				// run in foreground, must wait for completion
-				waitpid(spawnpid, &childStatus, 0);
-			}
-			else {
-				printf("background pid is %d\n", spawnpid);
-				fflush(stdout);
-				char savepid[10];
-				sprintf(savepid, "%d", spawnpid);
-				childArr[indx] = savepid;
-				indx = indx + 1;
-				// else, return right away
-			}
-		
+		if (currCommand->runBg == 0) {
+			// run in foreground, must wait for completion
+			waitpid(spawnpid, &childStatus, 0);
+			if (WIFEXITED(childStatus))
+				{
+				// terminated normally
+					status = WEXITSTATUS(childStatus);
+				}
+				else
+				{
+					//terminated abnormally
+					status = WTERMSIG(childStatus);
+				}
+		}
+		else {
+			// else, return right away & waitpid will be before next prompt
+			printf("background pid is %d\n", spawnpid);
+			fflush(stdout);
+
+			// add spawnpid to array of background processes
+			childArr[indx] = spawnpid;
+			indx = indx + 1;
+			
+		}
+
 	}
 
 	return;
@@ -299,13 +312,13 @@ struct commandLine* createCommand(char* token, char* userInput, char* savePtr, _
 ///Returns: None
 /// Referenced: Exploration: Process API - Monitoring Child Processes, 
 void commandPrompt() {
-	char *expand;
+	char* expand;
 	size_t buflen;
 	//size_t chars;
-	_Bool exitProgram = 0;	
+	_Bool exitProgram = 0;
 	_Bool background = 0;
 	char* token;
-	
+
 
 	while (exitProgram == 0)
 	{
@@ -313,6 +326,7 @@ void commandPrompt() {
 
 		//ensure variables are clear for new input
 		userInput = '\0';
+		background = 0;			// reset bool to 0
 
 		// iterate through background child pids to check for ones that have completed
 		for (int i = 0; i < 200; i++) {
@@ -334,10 +348,10 @@ void commandPrompt() {
 						childSignal = WTERMSIG(childStatus);
 					}
 
-					printf("background pid %s is done: exit value %d", childArr[i], childSignal);
+					printf("background pid %d is done: exit value %d\n", childArr[i], childSignal);
 					fflush(stdout);
-					int clearVal = -5;
-					childArr[i] = clearVal;	// clear out value
+					
+					childArr[i] = -5;	// clear out value
 				}
 			}
 			i++;
@@ -348,7 +362,7 @@ void commandPrompt() {
 
 		// get user input
 		getline(&userInput, &buflen, stdin);
-		char* savePtr;		
+		char* savePtr;
 
 		if (userInput[0] == '\n') {
 			//blank input
@@ -366,21 +380,21 @@ void commandPrompt() {
 
 		// check input for instance of $$
 		expand = strstr(userInput, "$$");
-	
+
 		if (expand != NULL) {
 			// $$ found in input and must be converted
 			inputCopy = expandInput(userInput);
 			printf("User input is now: %s\n", inputCopy);
 			fflush(stdout);
 		}
-		
-		if (strlen(inputCopy) > 1 && inputCopy[strlen(inputCopy)-2] == '&')
+
+		if (strlen(inputCopy) > 1 && inputCopy[strlen(inputCopy) - 2] == '&')
 		{
 			// symbol to run in background
 			background = 1;
 			inputCopy[strlen(inputCopy) - 2] = '\0';			// clear out & from end of input
 		}
-		
+
 		if (inputCopy[0] == '#')
 		{
 			// input is a comment, ignore 
@@ -388,7 +402,7 @@ void commandPrompt() {
 		}
 
 		inputCopy[strlen(inputCopy) - 1] = '\0';								// clear new line
-		
+
 		token = '\0';
 		token = strtok_r(inputCopy, " ", &savePtr);
 
@@ -396,11 +410,11 @@ void commandPrompt() {
 			statusCommand();
 		}
 
-		else if (strcmp(token, "exit") == 0){
+		else if (strcmp(token, "exit") == 0) {
 			exit(0);
-		}	
+		}
 
-		else if (strcmp(token, "cd")==0){
+		else if (strcmp(token, "cd") == 0) {
 			//changes to the directory specified in the HOME environment variable 
 			char* token = strtok_r(NULL, " ", &savePtr);
 
@@ -424,7 +438,5 @@ void commandPrompt() {
 
 	}
 
-		return;
+	return;
 }
-
-

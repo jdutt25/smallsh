@@ -3,15 +3,6 @@
   Build command not configured, skipping.
   Invoking 'make', working directory: '/nfs/stak/users/duttonj/projects/smallsh/'
   gcc -std=gnu99 -g -Wall -o smallsh smallsh.c 
-  In file included from smallsh.c:8:0:
-  smallsh.h: In function ‘commandPrompt’:
-  smallsh.h:321:19: warning: initialization makes integer from pointer without a cast [enabled by default]
-      int childPid = childArr[i];
-                     ^
-  smallsh.h:340:18: warning: assignment makes pointer from integer without a cast [enabled by default]
-        childArr[i] = clearVal; // clear out value
-                    ^
   ./smallsh
   : 
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\v160\Application Type\Linux\1.0\Linux.Makefile.Targets(333,5): warning MSB4220: Waiting for the currently executing task "Execute" to cancel.
   Copying file '/nfs/stak/users/duttonj/projects/smallsh/smallsh' to 'C:\Users\jessj\source\repos\smallsh\smallsh\bin\x64\Debug\smallsh'
