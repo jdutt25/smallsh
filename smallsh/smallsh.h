@@ -1,7 +1,5 @@
 /*
 	Author:	Jessica Dutton
-	Class:	OSU CS 344
-	Last updated: 2/7/22
 	Smallsh
 */
 
@@ -18,8 +16,6 @@
 char* userInput;
 int status = 0;
 int termSignal = -5;		// placeholder value
-int childArr[200];
-int indx = 0;
 _Bool foregroundOnly = 0;		// boolean for foreground only mode
 
 
@@ -46,8 +42,7 @@ struct commandLine
 	char* arguments[256];
 	char* inputFile;
 	char* outputFile;
-	_Bool runBg;						// true if & and false otherwise. if true, command runs in background (unless built in)
-
+	_Bool runBg;						// true if command should run in background & false otherwise
 };
 
 /// <summary>
@@ -73,8 +68,18 @@ void cdCommandArg(char* path) {
 }
 
 /// <summary>
+/// exit built in command
+/// </summary>
+///Returns: None
+void exitCommand() {
+	exit(0);
+	return;
+}
+
+/// <summary>
 /// status built in command
-/// prints out either the exit status or the terminating signal of the last foreground process ran by your shell
+/// prints out either the exit status or the terminating signal of the last foreground
+///  process ran by shell
 /// ignores built-in commands
 /// </summary>
 /// Parameters: None
@@ -96,7 +101,7 @@ void statusCommand() {
 /// <summary>
 /// performs input & output redirection & executes command
 /// </summary>
-/// <param name=""></param>
+/// <param name="">currCommand</param>
 void childProcess(struct commandLine* currCommand) {
 
 	//  ignore SIGTSTP
@@ -129,6 +134,35 @@ void childProcess(struct commandLine* currCommand) {
 		}
 	}
 
+	else
+	{
+		if (currCommand->runBg == 1) {
+			// no input file provided and background command, redirect to dev/null
+
+			int input = open("/dev/null", O_RDONLY, 0777);
+			if (input == -1) {
+				// failed to open
+				printf("Error, cannot open %s for input\n", currCommand->inputFile);
+				fflush(stdout);
+				status = 1;
+				termSignal = -5;		// reset term signal for new status
+				return;
+			}
+
+			int result = dup2(input, 0);
+			if (result == -1) {
+				perror("dup2");
+				status = 1;
+				termSignal = -5;		// reset term signal for new status
+				return;
+			}
+
+		}
+
+
+
+
+	}
 
 	if (currCommand->outputFile) {
 		//output file provided
@@ -198,6 +232,7 @@ void childProcess(struct commandLine* currCommand) {
 
 	status = 1;
 	termSignal = -5;		// reset term signal for new status
+	exitCommand();;
 	return;
 }
 
@@ -273,18 +308,12 @@ void runCommand(struct commandLine* currCommand) {
 					//terminated abnormally
 					termSignal = WTERMSIG(childStatus);
 					statusCommand();
-
 				}
 		}
 		else {
 			// else, return right away & waitpid will be before next prompt
 			printf("background pid is %d\n", spawnpid);
 			fflush(stdout);
-
-			// add spawnpid to array of background processes
-			childArr[indx] = spawnpid;
-			indx = indx + 1;
-			
 		}
 	}
 		return;
@@ -369,33 +398,28 @@ void commandPrompt() {
 		userInput = '\0';
 		background = 0;			// reset bool to 0
 
-		// iterate through background child pids to check for ones that have completed
-		for (int i = 0; i < 200; i++) {
-			int childStatus;
-			int childSignal;
-			int childPid = childArr[i];
-			if (childPid)
-			{
-				if (childPid != -5 && waitpid(childPid, &childStatus, WNOHANG) != 0)
-				{
-					if (WIFEXITED(childStatus))
-					{
-						// terminated normally
-						childSignal = WEXITSTATUS(childStatus);
-					}
-					else
-					{
-						//terminated abnormally
-						childSignal = WTERMSIG(childStatus);
-					}
 
-					printf("background pid %d is done: exit value %d\n", childArr[i], childSignal);
-					fflush(stdout);
-					
-					childArr[i] = -5;	// clear out value
-				}
+		// check for terminated background processes
+		int childStatus;
+		int childSignal;
+
+		pid_t stoppedPid = waitpid(-1, &childStatus, WNOHANG);
+		
+		if (stoppedPid != 0 && stoppedPid != -1) {
+
+			if (WIFEXITED(childStatus))
+			{
+				// terminated normally
+				childSignal = WEXITSTATUS(childStatus);
 			}
-			i++;
+			else
+			{
+				//terminated abnormally
+				childSignal = WTERMSIG(childStatus);
+			}
+
+			printf("background pid %d is done: exit value %d\n", stoppedPid, childSignal);
+			fflush(stdout);
 		}
 
 		// signal handler for foreground only mode
@@ -435,11 +459,15 @@ void commandPrompt() {
 			inputCopy = expandInput(userInput);
 		}
 
-		if (foregroundOnly != 1 && strlen(inputCopy) > 1 && inputCopy[strlen(inputCopy) - 2] == '&')
+		if (strlen(inputCopy) > 1 && inputCopy[strlen(inputCopy) - 2] == '&')
 		{
 			// symbol to run in background
-			background = 1;
 			inputCopy[strlen(inputCopy) - 2] = '\0';			// clear out & from end of input
+
+			if (foregroundOnly != 1) {
+				// foreground only is off, run om background
+				background = 1;
+			}
 		}
 
 		if (inputCopy[0] == '#')

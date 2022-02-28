@@ -1,7 +1,5 @@
 /*
 	Author:	Jessica Dutton
-	Class:	OSU CS 344
-	Last updated: 2/7/22
 	Smallsh Main
 */
 
